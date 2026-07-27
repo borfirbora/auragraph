@@ -21,10 +21,8 @@ export class UIManager {
         this.wrapper.style.outline = 'none';
 
         this.pane1 = this.createPane('Bölme 1: Deste', 'auragraph-pane deck-pane');
-        
         this.pane2 = this.createPane('Bölme 2: Kök', 'auragraph-pane root-pane');
         this.pane2.id = 'bölme-2-kök';
-
         this.pane3 = this.createPane('Bölme 3: Sihirli Liste', 'auragraph-pane magic-list-pane');
 
         this.wrapper.appendChild(this.pane1);
@@ -89,7 +87,6 @@ export class UIManager {
         tree.style.padding = '0';
         tree.id = 'root-tree';
 
-        // NVDA için Kök Düğüm
         const rootLi = document.createElement('li');
         rootLi.setAttribute('role', 'treeitem');
         rootLi.setAttribute('aria-expanded', outlinkPaths.length > 0 ? 'true' : 'false');
@@ -101,7 +98,6 @@ export class UIManager {
         rootLi.appendChild(rootSpan);
         tree.appendChild(rootLi);
 
-        // Kök düğümün altına Giden Bağlantıları Child olarak ekliyoruz
         if (outlinkPaths.length > 0) {
             const group = document.createElement('ul');
             group.setAttribute('role', 'group');
@@ -126,7 +122,6 @@ export class UIManager {
 
         content.appendChild(tree);
 
-        // Stil ve Odak dinleyicileri (Dataset indexleri ile InputHandler'ı bağlıyoruz)
         const items = content.querySelectorAll('.tree-item');
         items.forEach((item, index) => {
             item.dataset.index = index;
@@ -198,12 +193,25 @@ export class UIManager {
         const ul = document.createElement('ul');
         ul.style.listStyle = 'none';
         ul.style.padding = '0';
-        paths.forEach(p => {
+        ul.id = 'deck-list-container'; // ID eklendi
+
+        paths.forEach((p, index) => {
             const li = document.createElement('li');
             let b = p.split('/').pop().replace('.md', '');
             li.textContent = b;
+            li.className = 'deck-list-item'; // Sınıf eklendi
+            li.tabIndex = -1; // Odaklanabilirlik eklendi
+            li.dataset.index = index;
             li.style.padding = '5px';
             li.style.borderBottom = '1px solid #444';
+            
+            li.addEventListener('focus', () => {
+                li.style.background = 'rgba(255,255,255,0.1)';
+            });
+            li.addEventListener('blur', () => {
+                li.style.background = 'transparent';
+            });
+            
             ul.appendChild(li);
         });
         content.appendChild(ul);

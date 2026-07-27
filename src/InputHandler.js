@@ -6,6 +6,9 @@ export class InputHandler {
         this.app = app;
         this.closeModalCallback = closeModalCallback;
 
+        // YENİ: Aktif Bölme (1: Deste, 2: Kök/Ağaç, 3: Sihirli Liste)
+        this.activePane = 2; // Başlangıçta Kök (Ağaç) açık
+
         this.magicListState = null; 
         this.magicListOwnerPath = null; 
         this.magicListItems = [];
@@ -17,17 +20,22 @@ export class InputHandler {
         };
         
         this.deckPaths = []; 
+        this.deckFocusIndex = 0; // Deste için fokus indeksi
     }
 
     attachListeners() {
         this.uiManager.wrapper.addEventListener('keydown', (e) => this.handleKeyDown(e));
     }
 
+    // YENİ: Artık sadece Aktif Bölme'nin (activePane) içindeki elemanı okur
     getFocusedPath() {
-        if (this.magicListState && this.magicListFocusIndex >= 0) {
+        if (this.activePane === 1 && this.deckPaths.length > 0 && this.deckFocusIndex >= 0) {
+            return this.deckPaths[this.deckFocusIndex];
+        }
+        if (this.activePane === 3 && this.magicListState && this.magicListFocusIndex >= 0) {
             return this.magicListItems[this.magicListFocusIndex];
         }
-        if (this.treeState.paths.length > 0 && this.treeState.focusIndex >= 0) {
+        if (this.activePane === 2 && this.treeState.paths.length > 0 && this.treeState.focusIndex >= 0) {
             return this.treeState.paths[this.treeState.focusIndex];
         }
         return null;
@@ -47,33 +55,50 @@ export class InputHandler {
             this.magicListState = null;
             this.magicListOwnerPath = null; 
             this.treeState.focusIndex = 0; 
+            this.activePane = 2; // Escape daima Kök alanına döndürür
             this.focusTreeItem();
-            this.uiManager.announce("Köke dönüldü.");
+            this.uiManager.announce("Ağaç alanına dönüldü.");
             return;
         }
 
-        if (this.magicListState) {
-            if (['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(rawKey)) {
+        // --- BÖLME GEÇİŞ KISAYOLLARI (1, 2, 3) ---
+        if (rawKey === '1' && !isCtrl && !isShift) {
+            e.preventDefault(); e.stopPropagation();
+            this.activePane = 1;
+            this.uiManager.announce("Deste alanına geçildi.");
+            this.focusDeckItem();
+            return;
+        }
+        if (rawKey === '2' && !isCtrl && !isShift) {
+            e.preventDefault(); e.stopPropagation();
+            this.activePane = 2;
+            this.uiManager.announce("Ağaç alanına geçildi.");
+            this.focusTreeItem();
+            return;
+        }
+        if (rawKey === '3' && !isCtrl && !isShift) {
+            e.preventDefault(); e.stopPropagation();
+            this.activePane = 3;
+            if (this.magicListState && this.magicListItems.length > 0) {
+                this.uiManager.announce("Sihirli Liste alanına geçildi.");
+                this.focusMagicListItem();
+            } else {
+                this.uiManager.pane3.focus();
+                this.uiManager.announce("Sihirli liste alanına geçildi, ancak şu an boş.");
+            }
+            return;
+        }
+
+        // --- YÖN TUŞLARI (Bulunulan Bölmeye Göre Ayrılır) ---
+        if (['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(rawKey)) {
+            if (this.activePane === 1) {
+                this.handleDeckNavigation(e, rawKey);
+            } else if (this.activePane === 2) {
+                this.handleTreeNavigation(e, rawKey);
+            } else if (this.activePane === 3 && this.magicListState) {
                 this.handleMagicListNavigation(e, rawKey);
-                return;
             }
-        } else {
-            if (rawKey === 'ArrowDown') {
-                e.preventDefault(); e.stopPropagation();
-                if (this.treeState.focusIndex < this.treeState.paths.length - 1) {
-                    this.treeState.focusIndex++;
-                    this.focusTreeItem();
-                }
-                return;
-            }
-            if (rawKey === 'ArrowUp') {
-                e.preventDefault(); e.stopPropagation();
-                if (this.treeState.focusIndex > 0) {
-                    this.treeState.focusIndex--;
-                    this.focusTreeItem();
-                }
-                return;
-            }
+            return; // Yön tuşu işlendi, çık
         }
 
         if (rawKey === 'Enter') {
@@ -157,7 +182,6 @@ export class InputHandler {
             return;
         }
 
-        // Dosya yollarından sadece .md uzantısız dosya adlarını çıkarıyoruz
         const basenames = linkPaths.map(p => p.split('/').pop().replace('.md', ''));
         
         let message = "";
@@ -175,6 +199,42 @@ export class InputHandler {
         }
 
         this.uiManager.announce(`${type === 'inlinks' ? 'Gelenler' : 'Gidenler'}: ${message}.`);
+    }
+
+    handleDeckNavigation(e, key) {
+        if (this.deckPaths.length === 0) return;
+        
+        if (key === 'ArrowDown') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.deckFocusIndex < this.deckPaths.length - 1) {
+                this.deckFocusIndex++;
+                this.focusDeckItem();
+            }
+        } 
+        else if (key === 'ArrowUp') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.deckFocusIndex > 0) {
+                this.deckFocusIndex--;
+                this.focusDeckItem();
+            }
+        }
+    }
+
+    handleTreeNavigation(e, key) {
+        if (key === 'ArrowDown') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.treeState.focusIndex < this.treeState.paths.length - 1) {
+                this.treeState.focusIndex++;
+                this.focusTreeItem();
+            }
+        } 
+        else if (key === 'ArrowUp') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.treeState.focusIndex > 0) {
+                this.treeState.focusIndex--;
+                this.focusTreeItem();
+            }
+        }
     }
 
     handleMagicListNavigation(e, key) {
@@ -240,6 +300,9 @@ export class InputHandler {
         this.magicListState = direction;
         this.magicListItems = Object.keys(links);
         this.magicListFocusIndex = 0;
+        
+        // Liste açıldığında otomatik olarak odağı Bölme 3'e taşır
+        this.activePane = 3; 
 
         let basename = path.split('/').pop().replace('.md', '');
         this.uiManager.renderMagicList(basename, this.magicListItems, direction);
@@ -250,11 +313,14 @@ export class InputHandler {
         }, 50);
     }
 
-    focusMagicListItem() {
-        const container = document.getElementById('magic-list-container');
-        if (!container) return;
-        const items = container.querySelectorAll('.magic-list-item');
-        const targetItem = items[this.magicListFocusIndex];
+    focusDeckItem() {
+        const container = document.getElementById('deck-list-container');
+        if (!container || this.deckPaths.length === 0) {
+            this.uiManager.pane1.focus();
+            return;
+        }
+        const items = container.querySelectorAll('.deck-list-item');
+        const targetItem = items[this.deckFocusIndex];
         if (targetItem) targetItem.focus();
     }
 
@@ -266,9 +332,18 @@ export class InputHandler {
         if (targetItem) targetItem.focus();
     }
 
+    focusMagicListItem() {
+        const container = document.getElementById('magic-list-container');
+        if (!container) return;
+        const items = container.querySelectorAll('.magic-list-item');
+        const targetItem = items[this.magicListFocusIndex];
+        if (targetItem) targetItem.focus();
+    }
+
     changeRootNode(path) {
         this.magicListState = null;
         this.magicListOwnerPath = null; 
+        this.activePane = 2; // Kök değiştiğinde otomatik olarak Ağaç alanına (2) döner
         
         let basename = path.split('/').pop().replace('.md', '');
         
