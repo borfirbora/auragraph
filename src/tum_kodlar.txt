@@ -1,0 +1,590 @@
+
+====================
+DOSYA: .\AudioManager.js
+====================
+export class AudioManager {
+    constructor() {
+        // Tarayıcı uyumluluğu için AudioContext
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.audioCtx = new AudioContext();
+    }
+
+    playEarcon(type) {
+        // Güvenlik politikaları gereği suspended ise uyandır
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+
+        const oscillator = this.audioCtx.createOscillator();
+        const gainNode = this.audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+
+        if (type === 'bump') {
+            // Earcon 1: Tok, düşük frekanslı çarpma sesi (50ms)
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(150, this.audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(40, this.audioCtx.currentTime + 0.05);
+            
+            gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.05);
+            
+            oscillator.start();
+            oscillator.stop(this.audioCtx.currentTime + 0.05);
+        } 
+        else if (type === 'success') {
+            // Earcon 2: Kısa, ince ve pozitif bir ekleme sesi[cite: 1]
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(440, this.audioCtx.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(880, this.audioCtx.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.1);
+            
+            oscillator.start();
+            oscillator.stop(this.audioCtx.currentTime + 0.1);
+        }
+    }
+}
+====================
+DOSYA: .\InputHandler.js
+====================
+export class InputHandler {
+    constructor(uiManager, linkManager, audioManager, app) {
+        this.uiManager = uiManager;
+        this.linkManager = linkManager;
+        this.audioManager = audioManager;
+        this.app = app;
+
+        // State (Durum) Yönetimi Mimarisi
+        this.magicListState = null; // 'INCOMING' veya 'OUTGOING'
+        this.magicListItems = [];
+        this.magicListFocusIndex = -1; // Listede kaçıncı elemanda olunduğu
+
+        // Dinamik Kök (Aktif Not) State'i
+        const activeFile = this.app.workspace.getActiveFile();
+        this.currentRootPath = activeFile ? activeFile.path : null;
+        this.currentRootBasename = activeFile ? activeFile.basename : null;
+    }
+
+    attachListeners() {
+        this.uiManager.wrapper.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    }
+
+    handleKeyDown(e) {
+        const isShift = e.shiftKey;
+        const isCtrl = e.ctrlKey || e.metaKey;
+        const rawKey = e.key; 
+        const lowerKey = rawKey.toLowerCase();
+        
+        const isInlink = (lowerKey === 'ı' || lowerKey === 'i' || rawKey === 'I');
+        const isOutlink = (lowerKey === 'o' || rawKey === 'O');
+
+        if (rawKey === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation(); 
+            this.magicListState = null;
+            const rootPane = document.getElementById('bölme-2-kök');
+            if (rootPane) {
+                rootPane.focus();
+                this.uiManager.announce("Merkeze dönüldü.");
+            }
+            return;
+        }
+
+        // Eğer odak Bölme 3 (Sihirli Liste) içindeyse liste navigasyonu kısayolları çalışır
+        if (this.magicListState) {
+            this.handleMagicListNavigation(e, rawKey);
+            return; 
+        }
+
+        // --- Merkez Odak (Bölme 2) Kısayolları ---
+        if (isInlink && !isCtrl && !isShift) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.announceSummary('inlinks');
+        } 
+        else if (isOutlink && !isCtrl && !isShift) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.announceSummary('outlinks');
+        }
+        else if (isInlink && isShift && !isCtrl) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.announceDetailed('inlinks');
+        } 
+        else if (isOutlink && isShift && !isCtrl) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.announceDetailed('outlinks');
+        } 
+        else if (rawKey === ' ' && isShift && !isCtrl) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.addToDeck();
+        } 
+        else if (isInlink && isCtrl && isShift) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.openMagicList('INCOMING');
+        } 
+        else if (isOutlink && isCtrl && isShift) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.openMagicList('OUTGOING');
+        }
+    }
+
+    announceSummary(type) {
+        if (!this.currentRootPath) return;
+
+        let data = {};
+        let label = "";
+
+        if (type === 'inlinks') {
+            data = this.linkManager.getInlinks(this.currentRootPath);
+            label = "Gelen bağlantı";
+        } else {
+            data = this.linkManager.getOutlinks(this.currentRootPath);
+            label = "Giden bağlantı";
+        }
+
+        const count = Object.keys(data).length;
+        this.uiManager.announce(`${count} adet ${label} var.`);
+    }
+
+    announceDetailed(type) {
+        this.uiManager.announce(`Detaylı ${type} listesi seslendiriliyor. (Geçici test mesajı)`);
+    }
+
+    handleMagicListNavigation(e, key) {
+        if (key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.magicListFocusIndex < this.magicListItems.length - 1) {
+                this.magicListFocusIndex++;
+                this.focusMagicListItem();
+            }
+        } 
+        else if (key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.magicListFocusIndex > 0) {
+                this.magicListFocusIndex--;
+                this.focusMagicListItem();
+            }
+        }
+        else if (key === 'ArrowRight') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.attemptSwitchList('OUTGOING');
+        }
+        else if (key === 'ArrowLeft') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.attemptSwitchList('INCOMING');
+        }
+        else if (key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.magicListFocusIndex >= 0 && this.magicListItems[this.magicListFocusIndex]) {
+                const targetPath = this.magicListItems[this.magicListFocusIndex];
+                this.changeRootNode(targetPath);
+            }
+        }
+    }
+
+    attemptSwitchList(targetState) {
+        if (!this.currentRootPath) return;
+
+        let links = {};
+        if (targetState === 'INCOMING') {
+            links = this.linkManager.getInlinks(this.currentRootPath);
+        } else {
+            links = this.linkManager.getOutlinks(this.currentRootPath);
+        }
+
+        const keys = Object.keys(links);
+        if (keys.length === 0) {
+            this.audioManager.playEarcon('bump');
+        } else {
+            this.openMagicList(targetState);
+        }
+    }
+
+    openMagicList(direction) {
+        if (!this.currentRootPath) return;
+
+        let links = {};
+        if (direction === 'INCOMING') {
+            links = this.linkManager.getInlinks(this.currentRootPath);
+        } else {
+            links = this.linkManager.getOutlinks(this.currentRootPath);
+        }
+
+        this.magicListState = direction;
+        this.magicListItems = Object.keys(links);
+        this.magicListFocusIndex = 0;
+
+        this.uiManager.renderMagicList(this.currentRootBasename, this.magicListItems, direction);
+        this.uiManager.announce(`Sihirli liste ${direction === 'INCOMING' ? 'Gelenler' : 'Gidenler'} görünümünde açıldı.`);
+        
+        setTimeout(() => {
+            this.focusMagicListItem();
+        }, 50);
+    }
+
+    focusMagicListItem() {
+        const container = document.getElementById('magic-list-container');
+        if (!container) return;
+
+        const items = container.querySelectorAll('.magic-list-item');
+        const targetItem = items[this.magicListFocusIndex];
+        if (targetItem) {
+            targetItem.focus();
+        }
+    }
+
+    changeRootNode(path) {
+        this.magicListState = null;
+        this.currentRootPath = path;
+
+        // Dosya yolundan (path) sadece dosya adını (basename) çıkaralım. Örn: "Klasör/Not.md" -> "Not"
+        let basename = path;
+        if (path.includes('/')) {
+            basename = path.split('/').pop();
+        }
+        if (basename.endsWith('.md')) {
+            basename = basename.slice(0, -3);
+        }
+        this.currentRootBasename = basename;
+
+        // Yeni kök notun bağlantı sayılarını hesapla
+        const inlinks = this.linkManager.getInlinks(path);
+        const outlinks = this.linkManager.getOutlinks(path);
+        const inCount = Object.keys(inlinks).length;
+        const outCount = Object.keys(outlinks).length;
+
+        // Arayüzü (Bölme 2) doğrudan yeni verilerle güncelle
+        this.uiManager.updateRootNode(this.currentRootBasename, inCount, outCount);
+
+        // Sihirli Listeyi (Bölme 3) temizleyip hazır bekleme konumuna getir
+        const magicListContent = this.uiManager.pane3.querySelector('.pane-content');
+        if (magicListContent) {
+            magicListContent.textContent = 'Hazır bekliyor...';
+        }
+
+        // Sesli bildirim (Merkez nota odaklanıldığındaki otomatik okuma)
+        this.uiManager.announce(`${this.currentRootBasename} yeni kök oldu. ${inCount} Gelen, ${outCount} Giden bağlantı.`);
+        
+        // Odağı tekrar Kök panele (Bölme 2) döndür
+        const rootPane = document.getElementById('bölme-2-kök');
+        if (rootPane) {
+            rootPane.focus();
+        }
+    }
+
+    addToDeck() {
+        this.audioManager.playEarcon('success');
+        this.uiManager.announce("Desteye eklendi.");
+    }
+}
+====================
+DOSYA: .\LinkManager.js
+====================
+export class LinkManager {
+    constructor(app) {
+        this.app = app;
+    }
+
+    /**
+     * Aktif notun giden bağlantılarını (outlinks) döndürür.
+     * @param {string} filePath - Notun dosya yolu (örn: "Klasör/Not.md")
+     * @returns {Object} Giden bağlantılar ve ağırlıkları
+     */
+    getOutlinks(filePath) {
+        // resolvedLinks objesinde dosya yolu varsa döndür, yoksa boş obje dön.
+        return this.app.metadataCache.resolvedLinks[filePath] || {};
+    }
+
+    /**
+     * Tüm vault'u tarayarak hedef nota gelen bağlantıları (inlinks) bulur.
+     * @param {string} targetFilePath - Hedef notun dosya yolu
+     * @returns {Object} Gelen bağlantılar ve ağırlıkları
+     */
+    getInlinks(targetFilePath) {
+        const allLinks = this.app.metadataCache.resolvedLinks;
+        const inlinks = {};
+
+        // Tüm kaynak dosyaları dön
+        for (const sourcePath in allLinks) {
+            // Eğer kaynak dosya, hedef dosyamıza link vermişse bunu inlinks objesine ekle
+            if (allLinks[sourcePath][targetFilePath]) {
+                inlinks[sourcePath] = allLinks[sourcePath][targetFilePath];
+            }
+        }
+        return inlinks;
+    }
+
+    /**
+     * Hiçbir gelen ve giden bağlantısı olmayan yetim notları tespit eder.
+     * @returns {Array} Yetim notların dosya objeleri listesi
+     */
+    getOrphanNotes() {
+        const allLinks = this.app.metadataCache.resolvedLinks;
+        const orphans = [];
+        const allFiles = this.app.vault.getMarkdownFiles();
+
+        // Performans için tüm hedeflenen (gelen) linkleri bir Set içinde toplayalım
+        const allInlinks = new Set();
+        for (const source in allLinks) {
+            for (const target in allLinks[source]) {
+                allInlinks.add(target);
+            }
+        }
+
+        // Tüm markdown dosyalarını kontrol edelim
+        allFiles.forEach(file => {
+            const path = file.path;
+            const outlinks = Object.keys(allLinks[path] || {});
+            
+            const hasOutlinks = outlinks.length > 0;
+            const hasInlinks = allInlinks.has(path);
+
+            // Ne giden ne de gelen linki yoksa, bu bir yetim nottur
+            if (!hasOutlinks && !hasInlinks) {
+                orphans.push(file);
+            }
+        });
+
+        return orphans;
+    }
+}
+====================
+DOSYA: .\main.js
+====================
+import { Plugin, Modal } from 'obsidian';
+import { LinkManager } from './LinkManager.js';
+import { UIManager } from './UIManager.js';
+import { InputHandler } from './InputHandler.js';
+import { AudioManager } from './AudioManager.js';
+
+class AuraGraphStation extends Modal {
+    constructor(app, linkManager) {
+        super(app);
+        this.linkManager = linkManager;
+        this.uiManager = null;
+        this.inputHandler = null;
+        this.audioManager = null;
+    }
+
+    onOpen() {
+        this.titleEl.style.display = 'none';
+        this.modalEl.style.padding = '0';
+        
+        // 1. Arayüz yöneticisi
+        this.uiManager = new UIManager(this.contentEl);
+        this.uiManager.buildUI();
+
+        // 2. Ses yöneticisi
+        this.audioManager = new AudioManager();
+
+        // 3. Klavye ve Etkileşim yöneticisi (Parametre sırası çok önemli)
+        this.inputHandler = new InputHandler(
+            this.uiManager, 
+            this.linkManager, 
+            this.audioManager, 
+            this.app // app objesi mutlaka son sırada olmalı
+        );
+        this.inputHandler.attachListeners();
+        
+        this.loadInitialData();
+    }
+    
+    loadInitialData() {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile) {
+            const outlinks = this.linkManager.getOutlinks(activeFile.path);
+            const inlinks = this.linkManager.getInlinks(activeFile.path);
+            
+            const outCount = Object.keys(outlinks).length;
+            const inCount = Object.keys(inlinks).length;
+            
+            this.uiManager.updateRootNode(activeFile.basename, inCount, outCount);
+        } else {
+            this.uiManager.updateRootNode(null, 0, 0);
+        }
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+export default class AuraGraphPlugin extends Plugin {
+    async onload() {
+        console.log('AuraGraph (Saf JS) yükleniyor...');
+        
+        this.linkManager = new LinkManager(this.app);
+
+        this.addCommand({
+            id: 'open-auragraph',
+            name: 'AuraGraph İstasyonunu Aç',
+            hotkeys: [{ modifiers: ["Mod", "Shift"], key: "a" }],
+            callback: () => {
+                new AuraGraphStation(this.app, this.linkManager).open();
+            }
+        });
+    }
+
+    onunload() {
+        console.log('AuraGraph kapatıldı.');
+    }
+}
+====================
+DOSYA: .\UIManager.js
+====================
+export class UIManager {
+    constructor(containerEl) {
+        this.container = containerEl;
+        this.wrapper = null;
+        this.pane1 = null;
+        this.pane2 = null;
+        this.pane3 = null;
+    }
+
+    buildUI() {
+        this.container.empty();
+
+        this.wrapper = document.createElement('div');
+        this.wrapper.setAttribute('role', 'application');
+        this.wrapper.setAttribute('aria-label', 'AuraGraph Çalışma İstasyonu');
+        this.wrapper.tabIndex = -1;
+
+        // Yan yana üçlü sütun görünümü (Sol-Orta-Sağ)[cite: 1]
+        this.wrapper.style.display = 'flex';
+        this.wrapper.style.gap = '20px';
+        this.wrapper.style.padding = '10px';
+        this.wrapper.style.outline = 'none';
+
+        // Bölme 1: Deste (Sol - Kürasyon Alanı)[cite: 1]
+        this.pane1 = this.createPane('Bölme 1: Deste', 'auragraph-pane deck-pane');
+
+        // Bölme 2: Dinamik Kök (Orta - Merkez Alan)[cite: 1]
+        this.pane2 = this.createPane('Bölme 2: Kök', 'auragraph-pane root-pane');
+        // İleride Odak Kaybı durumunda (Edge Cases) geri dönmek için id veriyoruz[cite: 1]
+        this.pane2.id = 'bölme-2-kök';
+
+        // Bölme 3: Sihirli Liste (Sağ - Bağlantı Yolları)[cite: 1]
+        this.pane3 = this.createPane('Bölme 3: Sihirli Liste', 'auragraph-pane magic-list-pane');
+
+        this.wrapper.appendChild(this.pane1);
+        this.wrapper.appendChild(this.pane2);
+        this.wrapper.appendChild(this.pane3);
+
+        this.announcer = document.createElement('div');
+        this.announcer.setAttribute('aria-live', 'polite'); 
+        this.announcer.style.position = 'absolute';
+        this.announcer.style.width = '1px';
+        this.announcer.style.height = '1px';
+        this.announcer.style.padding = '0';
+        this.announcer.style.overflow = 'hidden';
+        this.announcer.style.clip = 'rect(0, 0, 0, 0)';
+        this.announcer.style.whiteSpace = 'nowrap';
+        this.wrapper.appendChild(this.announcer);
+
+        this.container.appendChild(this.wrapper);
+
+        setTimeout(() => {
+            this.wrapper.focus();
+        }, 50);
+    }
+
+    createPane(titleText, className) {
+        const pane = document.createElement('div');
+        pane.className = className;
+        pane.style.flex = '1';
+        pane.style.border = '1px solid #444';
+        pane.style.padding = '10px';
+        
+        // KRİTİK DÜZELTME: Bölmelerin odak alabilmesi için tabindex eklendi
+        pane.tabIndex = -1; 
+
+        const title = document.createElement('h3');
+        title.textContent = titleText;
+
+        const content = document.createElement('div');
+        content.className = 'pane-content';
+        content.textContent = 'Hazır bekliyor...';
+
+        pane.appendChild(title);
+        pane.appendChild(content);
+
+        return pane;
+    }
+
+    announce(message) {
+        if (this.announcer) {
+            this.announcer.textContent = '';
+            setTimeout(() => {
+                this.announcer.textContent = message;
+            }, 50);
+        }
+    }
+
+    renderMagicList(title, items, type) {
+        const content = this.pane3.querySelector('.pane-content');
+        content.empty(); 
+
+        const listTitle = document.createElement('h4');
+        listTitle.textContent = `${title} (${type === 'INCOMING' ? 'Gelenler' : 'Gidenler'})`;
+        content.appendChild(listTitle);
+
+        if (items.length === 0) {
+            const p = document.createElement('p');
+            p.textContent = "Bağlantı yok.";
+            content.appendChild(p);
+            return;
+        }
+
+        const ul = document.createElement('ul');
+        ul.style.listStyle = 'none';
+        ul.style.padding = '0';
+        ul.id = 'magic-list-container';
+
+        items.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.textContent = item;
+            li.className = 'magic-list-item';
+            li.tabIndex = -1;
+            li.dataset.index = index;
+            li.dataset.path = item;
+
+            li.style.padding = '5px';
+            li.style.borderBottom = '1px solid #555';
+            li.style.cursor = 'pointer';
+
+            li.addEventListener('focus', () => {
+                li.style.background = 'rgba(255,255,255,0.1)';
+            });
+            li.addEventListener('blur', () => {
+                li.style.background = 'transparent';
+            });
+
+            ul.appendChild(li);
+        });
+
+        content.appendChild(ul);
+    }
+
+    updateRootNode(nodeName, inlinkCount, outlinkCount) {
+        const content = this.pane2.querySelector('.pane-content');
+        if (nodeName) {
+            content.textContent = `${nodeName}. ${inlinkCount} Gelen, ${outlinkCount} Giden bağlantı.`;
+        } else {
+            content.textContent = "Aktif bir not bulunamadı.";
+        }
+    }
+}

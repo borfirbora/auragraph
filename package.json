@@ -1,0 +1,14 @@
+{
+    "name": "auragraph",
+    "version": "1.0.0",
+    "description": "Obsidian için erişilebilir bağlantı istasyonu",
+    "main": "main.js",
+    "scripts": {
+        "dev": "node esbuild.config.mjs",
+        "build": "node esbuild.config.mjs production"
+    },
+    "devDependencies": {
+        "esbuild": "^0.20.0",
+        "obsidian": "latest"
+    }
+}

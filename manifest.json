@@ -1,0 +1,10 @@
+{
+"id": "auragraph",
+"name": "AuraGraph",
+"version": "1.0.0",
+"minAppVersion": "1.4.0",
+"description": "Obsidian için sesli ve erişilebilir bağlantı istasyonu.",
+"author": "Erişilebilirlik Uzmanı",
+"authorUrl": "",
+"isDesktopOnly": true
+}
