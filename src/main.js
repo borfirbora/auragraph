@@ -36,9 +36,30 @@ class AuraGraphStation extends Modal {
     
     loadInitialData() {
         const activeFile = this.app.workspace.getActiveFile();
+        
         if (activeFile) {
-            // Başlangıçta aktif dosyayı kök olarak belirliyoruz
+            // 1. Senaryo: Ekranda halihazırda açık bir not var.
             this.inputHandler.changeRootNode(activeFile.path);
+        } else {
+            // 2. Senaryo: Ekranda açık sekme yok. Obsidian'ın geçmişine bak.
+            const recentPaths = this.app.workspace.getLastOpenFiles(); // Son açılan dosyaların yollarını dizi olarak verir
+            
+            if (recentPaths && recentPaths.length > 0) {
+                // En son açılan dosya dizinin 0. indeksindedir
+                const lastOpenedPath = recentPaths[0]; 
+                const file = this.app.vault.getAbstractFileByPath(lastOpenedPath);
+                
+                if (file) {
+                    this.inputHandler.changeRootNode(file.path);
+                    return; // İşlem başarılı, fonksiyondan çık
+                }
+            }
+
+            // 3. Senaryo: Geçmiş bomboş (yepyeni bir kasa veya geçmiş temizlenmiş)
+            setTimeout(() => {
+                this.audioManager.playEarcon('bump');
+                this.uiManager.announce("Açık bir not veya yakın zamanda açılmış bir dosya geçmişi bulunamadı. Ağaç şu an boş.");
+            }, 500);
         }
     }
 

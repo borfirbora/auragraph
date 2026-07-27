@@ -6,8 +6,7 @@ export class InputHandler {
         this.app = app;
         this.closeModalCallback = closeModalCallback;
 
-        // YENİ: Aktif Bölme (1: Deste, 2: Kök/Ağaç, 3: Sihirli Liste)
-        this.activePane = 2; // Başlangıçta Kök (Ağaç) açık
+        this.activePane = 2; 
 
         this.magicListState = null; 
         this.magicListOwnerPath = null; 
@@ -15,19 +14,18 @@ export class InputHandler {
         this.magicListFocusIndex = -1; 
 
         this.treeState = {
-            paths: [], 
+            nodes: [], 
             focusIndex: -1
         };
         
         this.deckPaths = []; 
-        this.deckFocusIndex = 0; // Deste için fokus indeksi
+        this.deckFocusIndex = 0; 
     }
 
     attachListeners() {
         this.uiManager.wrapper.addEventListener('keydown', (e) => this.handleKeyDown(e));
     }
 
-    // YENİ: Artık sadece Aktif Bölme'nin (activePane) içindeki elemanı okur
     getFocusedPath() {
         if (this.activePane === 1 && this.deckPaths.length > 0 && this.deckFocusIndex >= 0) {
             return this.deckPaths[this.deckFocusIndex];
@@ -35,8 +33,8 @@ export class InputHandler {
         if (this.activePane === 3 && this.magicListState && this.magicListFocusIndex >= 0) {
             return this.magicListItems[this.magicListFocusIndex];
         }
-        if (this.activePane === 2 && this.treeState.paths.length > 0 && this.treeState.focusIndex >= 0) {
-            return this.treeState.paths[this.treeState.focusIndex];
+        if (this.activePane === 2 && this.treeState.nodes.length > 0 && this.treeState.focusIndex >= 0) {
+            return this.treeState.nodes[this.treeState.focusIndex].path;
         }
         return null;
     }
@@ -50,18 +48,70 @@ export class InputHandler {
         const isInlink = (lowerKey === 'ı' || lowerKey === 'i' || rawKey === 'I');
         const isOutlink = (lowerKey === 'o' || rawKey === 'O');
 
+        if (rawKey === 'Tab') {
+            e.preventDefault(); 
+            e.stopPropagation();
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Sekme tuşu kapalı. Lütfen bölmeler için 1, 2 veya 3 tuşlarını kullanın.");
+            return;
+        }
+
+        // Escape sadece modalı kapatır
         if (rawKey === 'Escape') {
             e.preventDefault(); e.stopPropagation(); 
+            if (this.closeModalCallback) {
+                this.closeModalCallback();
+            }
+            return;
+        }
+
+        // YENİ: 'c' tuşu ile Sihirli Listeyi sıfırlayıp ağaca dönme[cite: 4]
+        if (lowerKey === 'c' && !isCtrl && !isShift) {
+            e.preventDefault(); e.stopPropagation();
             this.magicListState = null;
             this.magicListOwnerPath = null; 
-            this.treeState.focusIndex = 0; 
-            this.activePane = 2; // Escape daima Kök alanına döndürür
+            this.activePane = 2; 
             this.focusTreeItem();
             this.uiManager.announce("Ağaç alanına dönüldü.");
             return;
         }
 
-        // --- BÖLME GEÇİŞ KISAYOLLARI (1, 2, 3) ---
+        if (rawKey === 'Home') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1 && this.deckPaths.length > 0) {
+                this.deckFocusIndex = 0;
+                this.focusDeckItem();
+                this.uiManager.announce("Destenin başına gidildi.");
+            } else if (this.activePane === 2 && this.treeState.nodes.length > 0) {
+                this.treeState.focusIndex = 0;
+                this.focusTreeItem();
+                this.uiManager.announce("Ağacın köküne gidildi.");
+            } else if (this.activePane === 3 && this.magicListItems.length > 0) {
+                this.magicListFocusIndex = 0;
+                this.focusMagicListItem();
+                this.uiManager.announce("Sihirli listenin başına gidildi.");
+            }
+            return;
+        }
+
+        if (rawKey === 'End') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1 && this.deckPaths.length > 0) {
+                this.deckFocusIndex = this.deckPaths.length - 1;
+                this.focusDeckItem();
+                this.uiManager.announce("Destenin sonuna gidildi.");
+            } else if (this.activePane === 2 && this.treeState.nodes.length > 0) {
+                this.treeState.focusIndex = this.treeState.nodes.length - 1;
+                this.focusTreeItem();
+                this.uiManager.announce("Ağacın en altına gidildi.");
+            } else if (this.activePane === 3 && this.magicListItems.length > 0) {
+                this.magicListFocusIndex = this.magicListItems.length - 1;
+                this.focusMagicListItem();
+                this.uiManager.announce("Sihirli listenin sonuna gidildi.");
+            }
+            return;
+        }
+
         if (rawKey === '1' && !isCtrl && !isShift) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 1;
@@ -79,17 +129,11 @@ export class InputHandler {
         if (rawKey === '3' && !isCtrl && !isShift) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 3;
-            if (this.magicListState && this.magicListItems.length > 0) {
-                this.uiManager.announce("Sihirli Liste alanına geçildi.");
-                this.focusMagicListItem();
-            } else {
-                this.uiManager.pane3.focus();
-                this.uiManager.announce("Sihirli liste alanına geçildi, ancak şu an boş.");
-            }
+            this.uiManager.announce("Sihirli liste alanına geçildi.");
+            this.focusMagicListItem();
             return;
         }
 
-        // --- YÖN TUŞLARI (Bulunulan Bölmeye Göre Ayrılır) ---
         if (['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(rawKey)) {
             if (this.activePane === 1) {
                 this.handleDeckNavigation(e, rawKey);
@@ -98,7 +142,7 @@ export class InputHandler {
             } else if (this.activePane === 3 && this.magicListState) {
                 this.handleMagicListNavigation(e, rawKey);
             }
-            return; // Yön tuşu işlendi, çık
+            return; 
         }
 
         if (rawKey === 'Enter') {
@@ -106,12 +150,25 @@ export class InputHandler {
             this.openFocusedFile();
             return;
         }
+        
         if (rawKey === ' ' && !isShift && !isCtrl) {
             e.preventDefault(); e.stopPropagation();
-            const focusedPath = this.getFocusedPath();
-            if (focusedPath) this.changeRootNode(focusedPath);
+            if (this.activePane === 2) {
+                const node = this.treeState.nodes[this.treeState.focusIndex];
+                if (node) {
+                    if (node.expanded) this.collapseNode(this.treeState.focusIndex);
+                    else this.expandNode(this.treeState.focusIndex);
+                }
+            } 
+            else if (this.activePane === 3) {
+                const focusedPath = this.getFocusedPath();
+                if (focusedPath) {
+                    this.drillDown(focusedPath);
+                }
+            }
             return;
         }
+        
         if (rawKey === ' ' && isShift && !isCtrl) {
             e.preventDefault(); e.stopPropagation();
             this.addToDeck();
@@ -142,6 +199,100 @@ export class InputHandler {
             e.preventDefault(); e.stopPropagation();
             this.openMagicList('OUTGOING');
         }
+    }
+
+    expandNode(index, silent = false) {
+        const node = this.treeState.nodes[index];
+        if (node.expanded) return;
+        
+        if (!node.dynamicChildren || node.dynamicChildren.length === 0) {
+            if (!silent) {
+                this.audioManager.playEarcon('bump');
+                this.uiManager.announce("Genişletilecek alt bağlantı yok.");
+            }
+            return;
+        }
+
+        node.expanded = true;
+        node.hasChildren = true;
+
+        const newNodes = node.dynamicChildren.map((childPath, i) => {
+            const outlinks = Object.keys(this.linkManager.getOutlinks(childPath));
+            return {
+                id: Date.now().toString() + Math.random(),
+                path: childPath,
+                basename: childPath.split('/').pop().replace('.md', ''),
+                level: node.level + 1,
+                expanded: false,
+                hasChildren: outlinks.length > 0,
+                dynamicChildren: [...outlinks]
+            };
+        });
+
+        this.treeState.nodes.splice(index + 1, 0, ...newNodes);
+        this.uiManager.renderTree(this.treeState.nodes);
+        
+        if (!silent) {
+            this.audioManager.playEarcon('success'); 
+            this.uiManager.announce(`${node.basename} genişletildi, ${newNodes.length} alt öğe açıldı.`);
+        }
+        setTimeout(() => this.focusTreeItem(), 50);
+    }
+
+    collapseNode(index, silent = false) {
+        const node = this.treeState.nodes[index];
+        if (!node.expanded) return;
+
+        node.expanded = false;
+        let removeCount = 0;
+        
+        for (let i = index + 1; i < this.treeState.nodes.length; i++) {
+            if (this.treeState.nodes[i].level > node.level) {
+                removeCount++;
+            } else {
+                break;
+            }
+        }
+
+        if (removeCount > 0) {
+            this.treeState.nodes.splice(index + 1, removeCount);
+        }
+
+        this.uiManager.renderTree(this.treeState.nodes);
+        if (!silent) {
+            this.uiManager.announce(`${node.basename} daraltıldı.`);
+        }
+        setTimeout(() => this.focusTreeItem(), 50);
+    }
+
+    drillDown(path) {
+        if (this.treeState.nodes.length === 0) return; 
+        
+        const parentIndex = this.treeState.focusIndex;
+        const parentNode = this.treeState.nodes[parentIndex];
+        
+        if (!parentNode.dynamicChildren) parentNode.dynamicChildren = [];
+        
+        parentNode.dynamicChildren.unshift(path);
+        parentNode.hasChildren = true;
+
+        if (parentNode.expanded) {
+            this.collapseNode(parentIndex, true); 
+        }
+        this.expandNode(parentIndex, true); 
+        
+        this.treeState.focusIndex = parentIndex + 1; 
+        this.activePane = 2; 
+
+        const newNode = this.treeState.nodes[this.treeState.focusIndex];
+        this.audioManager.playEarcon('success');
+        this.uiManager.announce(`${newNode.basename}, ${parentNode.basename} düğümüne eklendi ve odaklanıldı.`);
+        
+        this.magicListState = null;
+        this.magicListOwnerPath = null;
+        this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
+
+        setTimeout(() => this.focusTreeItem(), 50);
     }
 
     announceSummary(type) {
@@ -223,7 +374,7 @@ export class InputHandler {
     handleTreeNavigation(e, key) {
         if (key === 'ArrowDown') {
             e.preventDefault(); e.stopPropagation();
-            if (this.treeState.focusIndex < this.treeState.paths.length - 1) {
+            if (this.treeState.focusIndex < this.treeState.nodes.length - 1) {
                 this.treeState.focusIndex++;
                 this.focusTreeItem();
             }
@@ -233,6 +384,43 @@ export class InputHandler {
             if (this.treeState.focusIndex > 0) {
                 this.treeState.focusIndex--;
                 this.focusTreeItem();
+            }
+        }
+        else if (key === 'ArrowRight') {
+            e.preventDefault(); e.stopPropagation();
+            const node = this.treeState.nodes[this.treeState.focusIndex];
+            if (node && node.hasChildren) {
+                if (!node.expanded) {
+                    this.expandNode(this.treeState.focusIndex);
+                } else {
+                    if (this.treeState.focusIndex < this.treeState.nodes.length - 1) {
+                        this.treeState.focusIndex++;
+                        this.focusTreeItem();
+                    }
+                }
+            } else {
+                this.audioManager.playEarcon('bump'); 
+            }
+        }
+        else if (key === 'ArrowLeft') {
+            e.preventDefault(); e.stopPropagation();
+            const node = this.treeState.nodes[this.treeState.focusIndex];
+            if (node) {
+                if (node.expanded) {
+                    this.collapseNode(this.treeState.focusIndex);
+                } else {
+                    let p = this.treeState.focusIndex - 1;
+                    while (p >= 0 && this.treeState.nodes[p].level >= node.level) {
+                        p--;
+                    }
+                    if (p >= 0) {
+                        this.treeState.focusIndex = p;
+                        this.focusTreeItem();
+                        this.uiManager.announce(`${this.treeState.nodes[p].basename} üst düğümüne dönüldü.`);
+                    } else {
+                        this.audioManager.playEarcon('bump'); 
+                    }
+                }
             }
         }
     }
@@ -301,7 +489,6 @@ export class InputHandler {
         this.magicListItems = Object.keys(links);
         this.magicListFocusIndex = 0;
         
-        // Liste açıldığında otomatik olarak odağı Bölme 3'e taşır
         this.activePane = 3; 
 
         let basename = path.split('/').pop().replace('.md', '');
@@ -315,12 +502,10 @@ export class InputHandler {
 
     focusDeckItem() {
         const container = document.getElementById('deck-list-container');
-        if (!container || this.deckPaths.length === 0) {
-            this.uiManager.pane1.focus();
-            return;
-        }
+        if (!container) return;
         const items = container.querySelectorAll('.deck-list-item');
-        const targetItem = items[this.deckFocusIndex];
+        let targetIndex = this.deckPaths.length === 0 ? 0 : this.deckFocusIndex;
+        const targetItem = items[targetIndex];
         if (targetItem) targetItem.focus();
     }
 
@@ -328,7 +513,9 @@ export class InputHandler {
         const container = document.getElementById('root-tree');
         if (!container) return;
         const items = container.querySelectorAll('.tree-item');
-        const targetItem = items[this.treeState.focusIndex];
+        let targetIndex = (!this.treeState.nodes || this.treeState.nodes.length === 0) ? 0 : this.treeState.focusIndex;
+        if (targetIndex < 0) targetIndex = 0; 
+        const targetItem = items[targetIndex];
         if (targetItem) targetItem.focus();
     }
 
@@ -336,36 +523,40 @@ export class InputHandler {
         const container = document.getElementById('magic-list-container');
         if (!container) return;
         const items = container.querySelectorAll('.magic-list-item');
-        const targetItem = items[this.magicListFocusIndex];
+        let targetIndex = (!this.magicListItems || this.magicListItems.length === 0) ? 0 : this.magicListFocusIndex;
+        const targetItem = items[targetIndex];
         if (targetItem) targetItem.focus();
     }
 
     changeRootNode(path) {
         this.magicListState = null;
         this.magicListOwnerPath = null; 
-        this.activePane = 2; // Kök değiştiğinde otomatik olarak Ağaç alanına (2) döner
+        this.activePane = 2; 
         
         let basename = path.split('/').pop().replace('.md', '');
-        
         const outlinksMap = this.linkManager.getOutlinks(path);
         const outlinkPaths = Object.keys(outlinksMap);
         
         this.treeState = {
-            paths: [path, ...outlinkPaths],
+            nodes: [{
+                id: Date.now().toString(),
+                path: path,
+                basename: basename,
+                level: 1,
+                expanded: false,
+                hasChildren: outlinkPaths.length > 0,
+                dynamicChildren: [...outlinkPaths]
+            }],
             focusIndex: 0
         };
 
-        this.uiManager.renderTree(basename, outlinkPaths);
+        this.uiManager.renderTree(this.treeState.nodes);
 
-        const inCount = Object.keys(this.linkManager.getInlinks(path)).length;
+        this.expandNode(0, true);
+
         const outCount = outlinkPaths.length;
-
-        this.uiManager.announce(`${basename} yeni kök oldu. Altında ${outCount} adet giden bağlantı düğümü var.`);
-
-        const magicListContent = this.uiManager.pane3.querySelector('.pane-content');
-        if (magicListContent) {
-            magicListContent.textContent = 'Hazır bekliyor...';
-        }
+        this.uiManager.announce(`${basename} çalışma istasyonunun kökü oldu. Altında ${outCount} adet bağlantı var.`);
+        this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
 
         setTimeout(() => {
             this.focusTreeItem();
