@@ -1,4 +1,5 @@
 import { Menu } from 'obsidian';
+import { t } from './i18n.js';
 
 export class InputHandler {
     constructor(uiManager, linkManager, audioManager, app, closeModalCallback) {
@@ -56,7 +57,7 @@ export class InputHandler {
             e.preventDefault(); 
             e.stopPropagation();
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Sekme kapalı.");
+            this.uiManager.announce(t('msg_tab_closed'));
             return;
         }
 
@@ -84,7 +85,7 @@ export class InputHandler {
             this.magicListOwnerPath = null; 
             this.activePane = 2; 
             this.focusTreeItem();
-            this.uiManager.announce("Ağaç.");
+            this.uiManager.announce(t('msg_tree'));
             return;
         }
 
@@ -105,15 +106,15 @@ export class InputHandler {
             if (this.activePane === 1 && this.deckPaths.length > 0) {
                 this.deckFocusIndex = 0;
                 this.focusDeckItem();
-                this.uiManager.announce("Deste başı.");
+                this.uiManager.announce(t('msg_deck_start'));
             } else if (this.activePane === 2 && this.treeState.nodes.length > 0) {
                 this.treeState.focusIndex = 0;
                 this.focusTreeItem();
-                this.uiManager.announce("Ağaç başı.");
+                this.uiManager.announce(t('msg_tree_start'));
             } else if (this.activePane === 3 && this.magicListItems.length > 0) {
                 this.magicListFocusIndex = 0;
                 this.focusMagicListItem();
-                this.uiManager.announce("Liste başı.");
+                this.uiManager.announce(t('msg_list_start'));
             }
             return;
         }
@@ -123,15 +124,15 @@ export class InputHandler {
             if (this.activePane === 1 && this.deckPaths.length > 0) {
                 this.deckFocusIndex = this.deckPaths.length - 1;
                 this.focusDeckItem();
-                this.uiManager.announce("Deste sonu.");
+                this.uiManager.announce(t('msg_deck_end'));
             } else if (this.activePane === 2 && this.treeState.nodes.length > 0) {
                 this.treeState.focusIndex = this.treeState.nodes.length - 1;
                 this.focusTreeItem();
-                this.uiManager.announce("Ağaç sonu.");
+                this.uiManager.announce(t('msg_tree_end'));
             } else if (this.activePane === 3 && this.magicListItems.length > 0) {
                 this.magicListFocusIndex = this.magicListItems.length - 1;
                 this.focusMagicListItem();
-                this.uiManager.announce("Liste sonu.");
+                this.uiManager.announce(t('msg_list_end'));
             }
             return;
         }
@@ -139,21 +140,21 @@ export class InputHandler {
         if (rawKey === '1' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 1;
-            this.uiManager.announce("Deste.");
+            this.uiManager.announce(t('msg_deck'));
             this.focusDeckItem();
             return;
         }
         if (rawKey === '2' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 2;
-            this.uiManager.announce("Ağaç.");
+            this.uiManager.announce(t('msg_tree'));
             this.focusTreeItem();
             return;
         }
         if (rawKey === '3' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 3;
-            this.uiManager.announce("Sihirli liste.");
+            this.uiManager.announce(t('msg_magic_list'));
             this.focusMagicListItem();
             return;
         }
@@ -179,7 +180,7 @@ export class InputHandler {
             e.preventDefault(); e.stopPropagation();
             if (this.activePane === 1 && this.deckPaths.length > 0) {
                 this.deckMoveTargetIndex = this.deckFocusIndex;
-                this.uiManager.announce("Seçildi.");
+                this.uiManager.announce(t('msg_selected'));
             } else {
                 this.audioManager.playEarcon('bump');
             }
@@ -191,7 +192,7 @@ export class InputHandler {
             if (this.activePane === 1) {
                 if (this.deckMoveTargetIndex === -1) {
                     this.audioManager.playEarcon('bump');
-                    this.uiManager.announce("Önce virgül ile seçin.");
+                    this.uiManager.announce(t('msg_select_comma'));
                 } else {
                     this.moveDeckItem();
                 }
@@ -259,7 +260,7 @@ export class InputHandler {
 
         if (this.deckMoveTargetIndex === this.deckFocusIndex) {
             this.deckMoveTargetIndex = -1;
-            this.uiManager.announce("İptal.");
+            this.uiManager.announce(t('msg_cancel'));
             return;
         }
 
@@ -268,7 +269,7 @@ export class InputHandler {
 
         this.deckMoveTargetIndex = -1;
         this.audioManager.playEarcon('success');
-        this.uiManager.announce("Taşındı.");
+        this.uiManager.announce(t('msg_moved'));
         
         this.uiManager.renderDeck(this.deckPaths);
         this.focusDeckItem();
@@ -289,7 +290,7 @@ export class InputHandler {
         this.deckMoveTargetIndex = -1;
 
         this.audioManager.playEarcon('bump');
-        this.uiManager.announce(`${basename} silindi.`);
+        this.uiManager.announce(`${basename} ${t('msg_deleted')}`);
         
         this.uiManager.renderDeck(this.deckPaths);
         this.focusDeckItem();
@@ -298,55 +299,55 @@ export class InputHandler {
     openDeckMenu() {
         if (this.deckPaths.length === 0) {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Deste boş.");
+            this.uiManager.announce(t('msg_deck_empty'));
             return;
         }
 
         const menu = new Menu();
 
         menu.addItem((item) => {
-            item.setTitle("Sadece Not İsimlerini Kopyala")
+            item.setTitle(t('msg_copy_names'))
                 .onClick(() => {
                     this.copyDeckAsNames();
                 });
         });
 
         menu.addItem((item) => {
-            item.setTitle("Notları Kopyala")
+            item.setTitle(t('msg_copy_content'))
                 .onClick(() => {
                     this.copyDeckAsContent();
                 });
         });
 
         this.showMenuAtFocus(menu);
-        this.uiManager.announce("Deste menüsü.");
+        this.uiManager.announce(t('msg_deck_menu'));
     }
 
     openTreeMenu() {
         if (!this.treeState.nodes || this.treeState.nodes.length === 0) {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Ağaç boş.");
+            this.uiManager.announce(t('msg_tree_empty_menu'));
             return;
         }
 
         const menu = new Menu();
 
         menu.addItem((item) => {
-            item.setTitle("Ağaç Olarak Kopyala")
+            item.setTitle(t('msg_copy_tree'))
                 .onClick(() => {
                     this.copyTreeAsHierarchy();
                 });
         });
 
         menu.addItem((item) => {
-            item.setTitle("Liste Olarak Kopyala")
+            item.setTitle(t('msg_copy_list'))
                 .onClick(() => {
                     this.copyTreeAsFlatList();
                 });
         });
 
         this.showMenuAtFocus(menu);
-        this.uiManager.announce("Ağaç menüsü.");
+        this.uiManager.announce(t('msg_tree_menu'));
     }
 
     showMenuAtFocus(menu) {
@@ -367,10 +368,10 @@ export class InputHandler {
         const text = this.deckPaths.map(p => `- ${p.split('/').pop().replace('.md', '')}`).join('\n');
         navigator.clipboard.writeText(text).then(() => {
             this.audioManager.playEarcon('success');
-            this.uiManager.announce("İsimler kopyalandı.");
+            this.uiManager.announce(t('msg_copied_names'));
         }).catch(() => {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Kopyalanamadı.");
+            this.uiManager.announce(t('msg_copy_failed'));
         });
     }
 
@@ -389,10 +390,10 @@ export class InputHandler {
             await navigator.clipboard.writeText(finalContent.trimEnd());
             
             this.audioManager.playEarcon('success');
-            this.uiManager.announce("İçerikler kopyalandı.");
+            this.uiManager.announce(t('msg_copied_content'));
         } catch (err) {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Kopyalanamadı.");
+            this.uiManager.announce(t('msg_copy_failed'));
         }
     }
 
@@ -404,10 +405,10 @@ export class InputHandler {
         
         navigator.clipboard.writeText(text).then(() => {
             this.audioManager.playEarcon('success');
-            this.uiManager.announce("Hiyerarşik kopyalandı.");
+            this.uiManager.announce(t('msg_copied_hierarchy'));
         }).catch(() => {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Kopyalanamadı.");
+            this.uiManager.announce(t('msg_copy_failed'));
         });
     }
 
@@ -416,10 +417,10 @@ export class InputHandler {
         
         navigator.clipboard.writeText(text).then(() => {
             this.audioManager.playEarcon('success');
-            this.uiManager.announce("Liste kopyalandı.");
+            this.uiManager.announce(t('msg_copied_list'));
         }).catch(() => {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce("Kopyalanamadı.");
+            this.uiManager.announce(t('msg_copy_failed'));
         });
     }
 
@@ -430,7 +431,7 @@ export class InputHandler {
         if (!node.dynamicChildren || node.dynamicChildren.length === 0) {
             if (!silent) {
                 this.audioManager.playEarcon('bump');
-                this.uiManager.announce("Bağlantı yok.");
+                this.uiManager.announce(t('msg_no_link'));
             }
             return;
         }
@@ -456,7 +457,7 @@ export class InputHandler {
         
         if (!silent) {
             this.audioManager.playEarcon('success'); 
-            this.uiManager.announce(`${node.basename} açıldı, ${newNodes.length} öğe.`);
+            this.uiManager.announce(`${node.basename} ${t('msg_opened')}, ${newNodes.length} ${t('msg_items')}.`);
         }
         this.focusTreeItem();
     }
@@ -482,7 +483,7 @@ export class InputHandler {
 
         this.uiManager.renderTree(this.treeState.nodes);
         if (!silent) {
-            this.uiManager.announce(`${node.basename} kapandı.`);
+            this.uiManager.announce(`${node.basename} ${t('msg_closed')}`);
         }
         this.focusTreeItem();
     }
@@ -508,11 +509,11 @@ export class InputHandler {
 
         const newNode = this.treeState.nodes[this.treeState.focusIndex];
         this.audioManager.playEarcon('success');
-        this.uiManager.announce(`${newNode.basename} eklendi.`);
+        this.uiManager.announce(`${newNode.basename} ${t('msg_added')}`);
         
         this.magicListState = null;
         this.magicListOwnerPath = null;
-        this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
+        this.uiManager.renderMagicList(t('magic_list'), [], 'INCOMING');
 
         this.focusTreeItem();
     }
@@ -526,10 +527,10 @@ export class InputHandler {
 
         if (type === 'inlinks') {
             data = this.linkManager.getInlinks(path);
-            label = "gelen";
+            label = t('msg_incoming_count');
         } else {
             data = this.linkManager.getOutlinks(path);
-            label = "giden";
+            label = t('msg_outgoing_count');
         }
         const count = Object.keys(data).length;
         this.uiManager.announce(`${count} ${label}.`);
@@ -551,7 +552,7 @@ export class InputHandler {
 
         if (totalCount === 0) {
             this.audioManager.playEarcon('bump');
-            this.uiManager.announce(`${type === 'inlinks' ? 'Gelen' : 'Giden'} yok.`);
+            this.uiManager.announce(`${type === 'inlinks' ? t('msg_no_incoming') : t('msg_no_outgoing')}`);
             return;
         }
 
@@ -563,15 +564,15 @@ export class InputHandler {
                 message = basenames[0];
             } else {
                 const lastItem = basenames.pop();
-                message = basenames.join(', ') + ' ve ' + lastItem;
+                message = basenames.join(', ') + ` ${t('msg_and')} ` + lastItem;
             }
         } else {
             const firstFive = basenames.slice(0, 5);
             const remaining = totalCount - 5;
-            message = firstFive.join(', ') + ` ve ${remaining} daha`;
+            message = firstFive.join(', ') + ` ${t('msg_and')} ${remaining} ${t('msg_more')}`;
         }
 
-        this.uiManager.announce(`${type === 'inlinks' ? 'Gelenler' : 'Gidenler'}: ${message}.`);
+        this.uiManager.announce(`${type === 'inlinks' ? t('msg_incoming_prefix') : t('msg_outgoing_prefix')}: ${message}.`);
     }
 
     handleDeckNavigation(e, key) {
@@ -715,7 +716,7 @@ export class InputHandler {
 
         let basename = path.split('/').pop().replace('.md', '');
         this.uiManager.renderMagicList(basename, this.magicListItems, direction);
-        this.uiManager.announce(`${direction === 'INCOMING' ? 'Gelenler' : 'Gidenler'}.`);
+        this.uiManager.announce(`${direction === 'INCOMING' ? t('msg_incoming_prefix') : t('msg_outgoing_prefix')}.`);
         
         this.focusMagicListItem();
     }
@@ -775,8 +776,8 @@ export class InputHandler {
         this.expandNode(0, true);
 
         const outCount = outlinkPaths.length;
-        this.uiManager.announce(`Kök: ${basename}, ${outCount} giden.`);
-        this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
+        this.uiManager.announce(`${t('msg_root')}: ${basename}, ${outCount} ${t('msg_outgoing_count')}.`);
+        this.uiManager.renderMagicList(t('magic_list'), [], 'INCOMING');
 
         this.focusTreeItem();
     }
@@ -791,7 +792,7 @@ export class InputHandler {
 
         let basename = path.split('/').pop().replace('.md', '');
         this.audioManager.playEarcon('success');
-        this.uiManager.announce(`${basename} destede.`);
+        this.uiManager.announce(`${basename} ${t('msg_in_deck')}`);
         
         this.uiManager.renderDeck(this.deckPaths);
     }
@@ -802,7 +803,7 @@ export class InputHandler {
 
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file) {
-            this.uiManager.announce("Açılıyor.");
+            this.uiManager.announce(t('msg_opening'));
             this.app.workspace.getLeaf(false).openFile(file);
             
             if (this.closeModalCallback) {

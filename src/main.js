@@ -4,6 +4,7 @@ import { UIManager } from './UIManager.js';
 import { InputHandler } from './InputHandler.js';
 import { AudioManager } from './AudioManager.js';
 import { OrphanNotesModal } from './OrphanNotesModal.js';
+import { t } from './i18n.js';
 
 class AuraGraphStation extends Modal {
     constructor(app, linkManager) {
@@ -54,7 +55,7 @@ class AuraGraphStation extends Modal {
 
             setTimeout(() => {
                 this.audioManager.playEarcon('bump');
-                this.uiManager.announce("Geçmiş yok, ağaç boş.");
+                this.uiManager.announce(t('announce_no_history'));
             }, 500);
         }
     }
@@ -70,7 +71,7 @@ export default class AuraGraphPlugin extends Plugin {
         
         this.addCommand({
             id: 'open-auragraph',
-            name: 'AuraGraph İstasyonunu Aç',
+            name: t('command_open_auragraph'),
             hotkeys: [{ modifiers: ["Mod", "Shift"], key: "a" }],
             callback: () => {
                 new AuraGraphStation(this.app, this.linkManager).open();
@@ -79,7 +80,7 @@ export default class AuraGraphPlugin extends Plugin {
 
         this.addCommand({
             id: 'open-orphan-notes',
-            name: 'Yetim Notları Aç',
+            name: t('command_open_orphan'),
             hotkeys: [{ modifiers: ["Mod", "Shift"], key: "o" }],
             callback: () => {
                 new OrphanNotesModal(this.app, this.linkManager).open();

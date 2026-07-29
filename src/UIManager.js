@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 export class UIManager {
     constructor(containerEl) {
         this.container = containerEl;
@@ -21,10 +23,10 @@ export class UIManager {
         this.wrapper.style.padding = '10px';
         this.wrapper.style.outline = 'none';
 
-        this.pane1 = this.createPane('Bölme 1: Deste', 'auragraph-pane deck-pane', 'listbox');
-        this.pane2 = this.createPane('Bölme 2: Kök', 'auragraph-pane root-pane', 'tree');
+        this.pane1 = this.createPane(t('pane_deck'), 'auragraph-pane deck-pane', 'listbox');
+        this.pane2 = this.createPane(t('pane_root'), 'auragraph-pane root-pane', 'tree');
         this.pane2.id = 'bölme-2-kök';
-        this.pane3 = this.createPane('Bölme 3: Sihirli Liste', 'auragraph-pane magic-list-pane', 'listbox');
+        this.pane3 = this.createPane(t('pane_magic'), 'auragraph-pane magic-list-pane', 'listbox');
 
         this.wrapper.appendChild(this.pane1);
         this.wrapper.appendChild(this.pane2);
@@ -63,7 +65,7 @@ export class UIManager {
         if (className.includes('magic')) {
             const magicTitle = document.createElement('h4');
             magicTitle.id = 'magic-list-dynamic-title';
-            magicTitle.textContent = 'Sihirli Liste';
+            magicTitle.textContent = t('magic_list');
             content.appendChild(magicTitle);
             labelledById = magicTitle.id;
         }
@@ -81,7 +83,7 @@ export class UIManager {
         const li = document.createElement('li');
         li.setAttribute('role', roleType === 'tree' ? 'treeitem' : 'option');
         li.tabIndex = -1;
-        li.textContent = 'Hazır bekliyor...';
+        li.textContent = t('status_ready');
         li.style.padding = '5px';
         li.style.borderBottom = '1px solid #555';
         
@@ -123,7 +125,7 @@ export class UIManager {
 
         if (!nodes || nodes.length === 0) {
             const li = document.createElement('li');
-            li.textContent = "Ağaç boş.";
+            li.textContent = t('tree_empty');
             li.setAttribute('role', 'treeitem');
             li.tabIndex = -1;
             tree.appendChild(li);
@@ -179,7 +181,8 @@ export class UIManager {
     renderMagicList(title, items, type) {
         const listTitle = document.getElementById('magic-list-dynamic-title');
         if (listTitle) {
-            listTitle.textContent = `${title} (${type === 'INCOMING' ? 'Gelenler' : 'Gidenler'})`;
+            const direction = type === 'INCOMING' ? t('magic_incoming') : t('magic_outgoing');
+            listTitle.textContent = `${title} (${direction})`;
         }
 
         const ul = document.getElementById('magic-list-container');
@@ -188,7 +191,7 @@ export class UIManager {
 
         if (items.length === 0) {
             const li = document.createElement('li');
-            li.textContent = "Bağlantı yok.";
+            li.textContent = t('magic_no_links');
             li.className = 'magic-list-item empty-item';
             li.setAttribute('role', 'option'); 
             li.tabIndex = -1;
@@ -230,7 +233,7 @@ export class UIManager {
         
         if (paths.length === 0) {
             const li = document.createElement('li');
-            li.textContent = 'Deste henüz boş.';
+            li.textContent = t('deck_empty');
             li.className = 'deck-list-item empty-item';
             li.setAttribute('role', 'option');
             li.tabIndex = -1;

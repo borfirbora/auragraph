@@ -1,5 +1,6 @@
 import { Modal } from 'obsidian';
 import { AudioManager } from './AudioManager.js';
+import { t } from './i18n.js';
 
 export class OrphanNotesModal extends Modal {
     constructor(app, linkManager) {
@@ -43,7 +44,7 @@ export class OrphanNotesModal extends Modal {
 
         const title = document.createElement('h3');
         title.id = 'orphan-notes-title';
-        title.textContent = `Yetim Notlar (${this.orphans.length})`;
+        title.textContent = `${t('orphan_notes_title')} (${this.orphans.length})`;
         title.style.margin = '0 0 10px 0';
         title.style.color = '#fff';
 
@@ -58,7 +59,7 @@ export class OrphanNotesModal extends Modal {
 
         if (this.orphans.length === 0) {
             const li = document.createElement('li');
-            li.textContent = 'Yetim not bulunamadı.';
+            li.textContent = t('orphan_not_found');
             li.setAttribute('role', 'option');
             li.tabIndex = -1;
             li.style.padding = '5px';
@@ -144,13 +145,13 @@ export class OrphanNotesModal extends Modal {
             e.stopPropagation();
             this.focusIndex = 0;
             this.focusItem();
-            this.announce("Başa gidildi.");
+            this.announce(t('msg_list_start'));
         } else if (rawKey === 'End') {
             e.preventDefault();
             e.stopPropagation();
             this.focusIndex = this.orphans.length - 1;
             this.focusItem();
-            this.announce("Sona gidildi.");
+            this.announce(t('msg_list_end'));
         } else if (rawKey === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
@@ -172,7 +173,7 @@ export class OrphanNotesModal extends Modal {
         if (this.orphans.length === 0) return;
         const file = this.orphans[this.focusIndex];
         if (file) {
-            this.announce("Açılıyor.");
+            this.announce(t('msg_opening'));
             this.app.workspace.getLeaf(false).openFile(file);
             this.close();
         }
