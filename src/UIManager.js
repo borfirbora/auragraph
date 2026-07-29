@@ -12,6 +12,7 @@ export class UIManager {
 
         this.wrapper = document.createElement('div');
         this.wrapper.setAttribute('role', 'application');
+        this.wrapper.setAttribute('aria-label', 'AuraGraph');
         this.wrapper.setAttribute('aria-modal', 'true'); 
         this.wrapper.tabIndex = -1;
 
