@@ -1,7 +1,7 @@
 {
 "id": "auragraph",
 "name": "AuraGraph",
-"version": "1.0.2",
+"version": "1.0.3",
 "minAppVersion": "1.4.0",
 "description": "Accessible GraphView for Blind Note Takers.",
 "author": "Bora FIRLANGEÇ",

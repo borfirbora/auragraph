@@ -1,6 +1,6 @@
 {
     "name": "auragraph",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Obsidian için erişilebilir bağlantı istasyonu",
     "main": "main.js",
     "scripts": {
