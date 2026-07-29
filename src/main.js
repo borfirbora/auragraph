@@ -54,7 +54,7 @@ class AuraGraphStation extends Modal {
 
             setTimeout(() => {
                 this.audioManager.playEarcon('bump');
-                this.uiManager.announce("Açık bir not veya yakın zamanda açılmış bir dosya geçmişi bulunamadı. Ağaç şu an boş.");
+                this.uiManager.announce("Geçmiş yok, ağaç boş.");
             }, 500);
         }
     }
@@ -66,7 +66,6 @@ class AuraGraphStation extends Modal {
 
 export default class AuraGraphPlugin extends Plugin {
     async onload() {
-        console.log('AuraGraph (Saf JS) yükleniyor...');
         this.linkManager = new LinkManager(this.app);
         
         this.addCommand({
@@ -89,6 +88,5 @@ export default class AuraGraphPlugin extends Plugin {
     }
 
     onunload() {
-        console.log('AuraGraph kapatıldı.');
     }
 }

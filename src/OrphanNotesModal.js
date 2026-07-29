@@ -23,7 +23,6 @@ export class OrphanNotesModal extends Modal {
         this.attachListeners();
         
         setTimeout(() => {
-            this.announce("Yetim notlar paneli açıldı.");
             this.focusItem();
         }, 100);
     }
@@ -145,13 +144,13 @@ export class OrphanNotesModal extends Modal {
             e.stopPropagation();
             this.focusIndex = 0;
             this.focusItem();
-            this.announce("Listenin başına gidildi.");
+            this.announce("Başa gidildi.");
         } else if (rawKey === 'End') {
             e.preventDefault();
             e.stopPropagation();
             this.focusIndex = this.orphans.length - 1;
             this.focusItem();
-            this.announce("Listenin sonuna gidildi.");
+            this.announce("Sona gidildi.");
         } else if (rawKey === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
@@ -173,7 +172,7 @@ export class OrphanNotesModal extends Modal {
         if (this.orphans.length === 0) return;
         const file = this.orphans[this.focusIndex];
         if (file) {
-            this.announce(`${file.basename} açılıyor...`);
+            this.announce("Açılıyor.");
             this.app.workspace.getLeaf(false).openFile(file);
             this.close();
         }
