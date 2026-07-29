@@ -22,6 +22,7 @@ export class InputHandler {
         
         this.deckPaths = []; 
         this.deckFocusIndex = 0; 
+        this.deckMoveTargetIndex = -1; 
     }
 
     attachListeners() {
@@ -44,6 +45,7 @@ export class InputHandler {
     handleKeyDown(e) {
         const isShift = e.shiftKey;
         const isCtrl = e.ctrlKey || e.metaKey;
+        const isAlt = e.altKey;
         const rawKey = e.key; 
         const lowerKey = rawKey.toLowerCase();
         
@@ -66,7 +68,17 @@ export class InputHandler {
             return;
         }
 
-        if (lowerKey === 'c' && !isCtrl && !isShift) {
+        if (rawKey === 'Delete') {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1 && this.deckPaths.length > 0) {
+                this.removeFromDeck();
+            } else {
+                this.audioManager.playEarcon('bump');
+            }
+            return;
+        }
+
+        if (lowerKey === 'c' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.magicListState = null;
             this.magicListOwnerPath = null; 
@@ -76,7 +88,7 @@ export class InputHandler {
             return;
         }
 
-        if (lowerKey === 'e' && !isCtrl && !isShift) {
+        if (lowerKey === 'e' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             if (this.activePane === 1) {
                 this.openDeckMenu();
@@ -124,21 +136,21 @@ export class InputHandler {
             return;
         }
 
-        if (rawKey === '1' && !isCtrl && !isShift) {
+        if (rawKey === '1' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 1;
             this.uiManager.announce("Deste.");
             this.focusDeckItem();
             return;
         }
-        if (rawKey === '2' && !isCtrl && !isShift) {
+        if (rawKey === '2' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 2;
             this.uiManager.announce("Ağaç.");
             this.focusTreeItem();
             return;
         }
-        if (rawKey === '3' && !isCtrl && !isShift) {
+        if (rawKey === '3' && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.activePane = 3;
             this.uiManager.announce("Sihirli liste.");
@@ -162,8 +174,34 @@ export class InputHandler {
             this.openFocusedFile();
             return;
         }
+
+        if (rawKey === ',' && !isShift && !isCtrl && !isAlt) {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1 && this.deckPaths.length > 0) {
+                this.deckMoveTargetIndex = this.deckFocusIndex;
+                this.uiManager.announce("Seçildi.");
+            } else {
+                this.audioManager.playEarcon('bump');
+            }
+            return;
+        }
+
+        if (rawKey === '.' && !isShift && !isCtrl && !isAlt) {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1) {
+                if (this.deckMoveTargetIndex === -1) {
+                    this.audioManager.playEarcon('bump');
+                    this.uiManager.announce("Önce virgül ile seçin.");
+                } else {
+                    this.moveDeckItem();
+                }
+            } else {
+                this.audioManager.playEarcon('bump');
+            }
+            return;
+        }
         
-        if (rawKey === ' ' && !isShift && !isCtrl) {
+        if (rawKey === ' ' && !isShift && !isCtrl && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             if (this.activePane === 2) {
                 const node = this.treeState.nodes[this.treeState.focusIndex];
@@ -178,39 +216,83 @@ export class InputHandler {
                     this.drillDown(focusedPath);
                 }
             }
+            else {
+                this.audioManager.playEarcon('bump');
+            }
             return;
         }
         
-        if (rawKey === ' ' && isShift && !isCtrl) {
+        if (rawKey === ' ' && isShift && !isCtrl && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.addToDeck();
             return;
         }
 
-        if (isInlink && !isCtrl && !isShift) {
+        if (isInlink && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.announceSummary('inlinks');
         } 
-        else if (isOutlink && !isCtrl && !isShift) {
+        else if (isOutlink && !isCtrl && !isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.announceSummary('outlinks');
         }
-        else if (isInlink && isShift && !isCtrl) {
+        else if (isInlink && isShift && !isCtrl && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.announceDetailed('inlinks');
         } 
-        else if (isOutlink && isShift && !isCtrl) {
+        else if (isOutlink && isShift && !isCtrl && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.announceDetailed('outlinks');
         } 
-        else if (isInlink && isCtrl && isShift) {
+        else if (isInlink && isCtrl && isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.openMagicList('INCOMING');
         } 
-        else if (isOutlink && isCtrl && isShift) {
+        else if (isOutlink && isCtrl && isShift && !isAlt) {
             e.preventDefault(); e.stopPropagation();
             this.openMagicList('OUTGOING');
         }
+    }
+
+    moveDeckItem() {
+        if (this.deckMoveTargetIndex === -1) return;
+
+        if (this.deckMoveTargetIndex === this.deckFocusIndex) {
+            this.deckMoveTargetIndex = -1;
+            this.uiManager.announce("İptal.");
+            return;
+        }
+
+        const itemToMove = this.deckPaths.splice(this.deckMoveTargetIndex, 1)[0];
+        this.deckPaths.splice(this.deckFocusIndex, 0, itemToMove);
+
+        this.deckMoveTargetIndex = -1;
+        this.audioManager.playEarcon('success');
+        this.uiManager.announce("Taşındı.");
+        
+        this.uiManager.renderDeck(this.deckPaths);
+        this.focusDeckItem();
+    }
+
+    removeFromDeck() {
+        if (this.deckPaths.length === 0) return;
+
+        const removedPath = this.deckPaths.splice(this.deckFocusIndex, 1)[0];
+        const basename = removedPath.split('/').pop().replace('.md', '');
+
+        if (this.deckPaths.length === 0) {
+            this.deckFocusIndex = 0;
+        } else if (this.deckFocusIndex >= this.deckPaths.length) {
+            this.deckFocusIndex = this.deckPaths.length - 1;
+        }
+
+        this.deckMoveTargetIndex = -1;
+
+        this.audioManager.playEarcon('bump');
+        this.uiManager.announce(`${basename} silindi.`);
+        
+        this.uiManager.renderDeck(this.deckPaths);
+        this.focusDeckItem();
     }
 
     openDeckMenu() {
