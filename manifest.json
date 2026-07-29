@@ -3,8 +3,8 @@
 "name": "AuraGraph",
 "version": "1.0.0",
 "minAppVersion": "1.4.0",
-"description": "Obsidian için sesli ve erişilebilir bağlantı istasyonu.",
-"author": "Erişilebilirlik Uzmanı",
-"authorUrl": "",
+"description": "Accessible GraphView for Obsidian",
+"author": "Bora FIRLANGEÇ",
+"authorUrl": "https://kodyazabil.me/",
 "isDesktopOnly": true
 }
