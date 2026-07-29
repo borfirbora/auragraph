@@ -1,3 +1,5 @@
+import { Menu } from 'obsidian';
+
 export class InputHandler {
     constructor(uiManager, linkManager, audioManager, app, closeModalCallback) {
         this.uiManager = uiManager;
@@ -56,7 +58,6 @@ export class InputHandler {
             return;
         }
 
-        // Escape sadece modalı kapatır
         if (rawKey === 'Escape') {
             e.preventDefault(); e.stopPropagation(); 
             if (this.closeModalCallback) {
@@ -65,7 +66,6 @@ export class InputHandler {
             return;
         }
 
-        // YENİ: 'c' tuşu ile Sihirli Listeyi sıfırlayıp ağaca dönme[cite: 4]
         if (lowerKey === 'c' && !isCtrl && !isShift) {
             e.preventDefault(); e.stopPropagation();
             this.magicListState = null;
@@ -73,6 +73,18 @@ export class InputHandler {
             this.activePane = 2; 
             this.focusTreeItem();
             this.uiManager.announce("Ağaç alanına dönüldü.");
+            return;
+        }
+
+        if (lowerKey === 'e' && !isCtrl && !isShift) {
+            e.preventDefault(); e.stopPropagation();
+            if (this.activePane === 1) {
+                this.openDeckMenu();
+            } else if (this.activePane === 2) {
+                this.openTreeMenu();
+            } else {
+                this.audioManager.playEarcon('bump');
+            }
             return;
         }
 
@@ -201,6 +213,134 @@ export class InputHandler {
         }
     }
 
+    openDeckMenu() {
+        if (this.deckPaths.length === 0) {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Deste boş, menü açılamadı.");
+            return;
+        }
+
+        const menu = new Menu();
+
+        menu.addItem((item) => {
+            item.setTitle("Sadece Not İsimlerini Kopyala")
+                .onClick(() => {
+                    this.copyDeckAsNames();
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle("Notları Kopyala")
+                .onClick(() => {
+                    this.copyDeckAsContent();
+                });
+        });
+
+        this.showMenuAtFocus(menu);
+        this.uiManager.announce("Deste menüsü açıldı. Yön tuşlarıyla gezinebilirsiniz.");
+    }
+
+    openTreeMenu() {
+        if (!this.treeState.nodes || this.treeState.nodes.length === 0) {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Ağaç boş, menü açılamadı.");
+            return;
+        }
+
+        const menu = new Menu();
+
+        menu.addItem((item) => {
+            item.setTitle("Ağaç Olarak Kopyala")
+                .onClick(() => {
+                    this.copyTreeAsHierarchy();
+                });
+        });
+
+        menu.addItem((item) => {
+            item.setTitle("Liste Olarak Kopyala")
+                .onClick(() => {
+                    this.copyTreeAsFlatList();
+                });
+        });
+
+        this.showMenuAtFocus(menu);
+        this.uiManager.announce("Ağaç menüsü açıldı. Yön tuşlarıyla gezinebilirsiniz.");
+    }
+
+    showMenuAtFocus(menu) {
+        const activeEl = document.activeElement;
+        let x = window.innerWidth / 2;
+        let y = window.innerHeight / 2;
+        
+        if (activeEl && activeEl.getBoundingClientRect) {
+            const rect = activeEl.getBoundingClientRect();
+            x = rect.left;
+            y = rect.bottom;
+        }
+        
+        menu.showAtPosition({ x, y });
+    }
+
+    copyDeckAsNames() {
+        const text = this.deckPaths.map(p => `- ${p.split('/').pop().replace('.md', '')}`).join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+            this.audioManager.playEarcon('success');
+            this.uiManager.announce("Deste not isimleri panoya kopyalandı.");
+        }).catch(() => {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Kopyalama başarısız oldu.");
+        });
+    }
+
+    async copyDeckAsContent() {
+        try {
+            let finalContent = "";
+            for (const path of this.deckPaths) {
+                const file = this.app.vault.getAbstractFileByPath(path);
+                if (file) {
+                    const content = await this.app.vault.read(file);
+                    const basename = path.split('/').pop().replace('.md', '');
+                    finalContent += `## ${basename}\n\n${content}\n\n`;
+                }
+            }
+            
+            await navigator.clipboard.writeText(finalContent.trimEnd());
+            
+            this.audioManager.playEarcon('success');
+            this.uiManager.announce("Destedeki notların içerikleri panoya kopyalandı.");
+        } catch (err) {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("İçerikleri kopyalama başarısız oldu.");
+        }
+    }
+
+    copyTreeAsHierarchy() {
+        const text = this.treeState.nodes.map(node => {
+            const indent = "  ".repeat(node.level - 1);
+            return `${indent}- ${node.basename}`;
+        }).join('\n');
+        
+        navigator.clipboard.writeText(text).then(() => {
+            this.audioManager.playEarcon('success');
+            this.uiManager.announce("Ağaç hiyerarşik olarak panoya kopyalandı.");
+        }).catch(() => {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Kopyalama başarısız oldu.");
+        });
+    }
+
+    copyTreeAsFlatList() {
+        const text = this.treeState.nodes.map(node => `- ${node.basename}`).join('\n');
+        
+        navigator.clipboard.writeText(text).then(() => {
+            this.audioManager.playEarcon('success');
+            this.uiManager.announce("Ağaç düz liste olarak panoya kopyalandı.");
+        }).catch(() => {
+            this.audioManager.playEarcon('bump');
+            this.uiManager.announce("Kopyalama başarısız oldu.");
+        });
+    }
+
     expandNode(index, silent = false) {
         const node = this.treeState.nodes[index];
         if (node.expanded) return;
@@ -236,7 +376,7 @@ export class InputHandler {
             this.audioManager.playEarcon('success'); 
             this.uiManager.announce(`${node.basename} genişletildi, ${newNodes.length} alt öğe açıldı.`);
         }
-        setTimeout(() => this.focusTreeItem(), 50);
+        this.focusTreeItem();
     }
 
     collapseNode(index, silent = false) {
@@ -262,7 +402,7 @@ export class InputHandler {
         if (!silent) {
             this.uiManager.announce(`${node.basename} daraltıldı.`);
         }
-        setTimeout(() => this.focusTreeItem(), 50);
+        this.focusTreeItem();
     }
 
     drillDown(path) {
@@ -292,7 +432,7 @@ export class InputHandler {
         this.magicListOwnerPath = null;
         this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
 
-        setTimeout(() => this.focusTreeItem(), 50);
+        this.focusTreeItem();
     }
 
     announceSummary(type) {
@@ -495,9 +635,7 @@ export class InputHandler {
         this.uiManager.renderMagicList(basename, this.magicListItems, direction);
         this.uiManager.announce(`Sihirli liste ${direction === 'INCOMING' ? 'Gelenler' : 'Gidenler'} görünümünde açıldı.`);
         
-        setTimeout(() => {
-            this.focusMagicListItem();
-        }, 50);
+        this.focusMagicListItem();
     }
 
     focusDeckItem() {
@@ -558,9 +696,7 @@ export class InputHandler {
         this.uiManager.announce(`${basename} çalışma istasyonunun kökü oldu. Altında ${outCount} adet bağlantı var.`);
         this.uiManager.renderMagicList('Sihirli Liste', [], 'INCOMING');
 
-        setTimeout(() => {
-            this.focusTreeItem();
-        }, 50);
+        this.focusTreeItem();
     }
 
     addToDeck() {

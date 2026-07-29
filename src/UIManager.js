@@ -41,10 +41,6 @@ export class UIManager {
         this.wrapper.appendChild(this.announcer);
 
         this.container.appendChild(this.wrapper);
-
-        setTimeout(() => {
-            this.wrapper.focus();
-        }, 50);
     }
 
     createPane(titleText, className, roleType) {
@@ -61,9 +57,19 @@ export class UIManager {
         const content = document.createElement('div');
         content.className = 'pane-content';
         
+        let labelledById = title.id;
+
+        if (className.includes('magic')) {
+            const magicTitle = document.createElement('h4');
+            magicTitle.id = 'magic-list-dynamic-title';
+            magicTitle.textContent = 'Sihirli Liste';
+            content.appendChild(magicTitle);
+            labelledById = magicTitle.id;
+        }
+
         const ul = document.createElement('ul');
         ul.setAttribute('role', roleType);
-        ul.setAttribute('aria-labelledby', title.id); 
+        ul.setAttribute('aria-labelledby', labelledById); 
         ul.style.listStyle = 'none';
         ul.style.padding = '0';
         
@@ -109,17 +115,10 @@ export class UIManager {
         }
     }
 
-    // YENİ: Ağaç yapısı düz (flat) listeye dönüştürülüp aria-level ile hiyerarşi sağlandı.
     renderTree(nodes) {
-        const content = this.pane2.querySelector('.pane-content');
-        content.empty(); 
-
-        const tree = document.createElement('ul');
-        tree.setAttribute('role', 'tree');
-        tree.setAttribute('aria-labelledby', this.pane2.querySelector('h3').id);
-        tree.style.listStyle = 'none';
-        tree.style.padding = '0';
-        tree.id = 'root-tree';
+        const tree = document.getElementById('root-tree');
+        if (!tree) return;
+        tree.empty(); 
 
         if (!nodes || nodes.length === 0) {
             const li = document.createElement('li');
@@ -127,14 +126,13 @@ export class UIManager {
             li.setAttribute('role', 'treeitem');
             li.tabIndex = -1;
             tree.appendChild(li);
-            content.appendChild(tree);
             return;
         }
 
         nodes.forEach((node, index) => {
             const li = document.createElement('li');
             li.setAttribute('role', 'treeitem');
-            li.setAttribute('aria-level', node.level); // NVDA'ya derinliği bildirir
+            li.setAttribute('aria-level', node.level); 
             
             if (node.hasChildren) {
                 li.setAttribute('aria-expanded', node.expanded ? 'true' : 'false');
@@ -143,7 +141,6 @@ export class UIManager {
             li.tabIndex = -1;
             li.className = 'tree-item';
             
-            // Görsel olarak içeriden başlatmak için derinliğe göre padding hesaplaması
             li.style.padding = '5px';
             li.style.paddingLeft = `${(node.level - 1) * 20 + 5}px`; 
             li.style.borderBottom = '1px solid #444';
@@ -155,7 +152,6 @@ export class UIManager {
                 prefix = "    "; 
             }
 
-            // Prefix'i görsel olarak gösterip NVDA'dan gizliyoruz, çünkü NVDA aria-expanded ile zaten anlıyor.
             const prefixSpan = document.createElement('span');
             prefixSpan.textContent = prefix;
             prefixSpan.setAttribute('aria-hidden', 'true');
@@ -177,25 +173,17 @@ export class UIManager {
             
             tree.appendChild(li);
         });
-
-        content.appendChild(tree);
     }
 
     renderMagicList(title, items, type) {
-        const content = this.pane3.querySelector('.pane-content');
-        content.empty(); 
+        const listTitle = document.getElementById('magic-list-dynamic-title');
+        if (listTitle) {
+            listTitle.textContent = `${title} (${type === 'INCOMING' ? 'Gelenler' : 'Gidenler'})`;
+        }
 
-        const listTitle = document.createElement('h4');
-        listTitle.id = 'magic-list-dynamic-title'; 
-        listTitle.textContent = `${title} (${type === 'INCOMING' ? 'Gelenler' : 'Gidenler'})`;
-        content.appendChild(listTitle);
-
-        const ul = document.createElement('ul');
-        ul.setAttribute('role', 'listbox'); 
-        ul.setAttribute('aria-labelledby', listTitle.id); 
-        ul.style.listStyle = 'none';
-        ul.style.padding = '0';
-        ul.id = 'magic-list-container';
+        const ul = document.getElementById('magic-list-container');
+        if (!ul) return;
+        ul.empty(); 
 
         if (items.length === 0) {
             const li = document.createElement('li');
@@ -208,7 +196,6 @@ export class UIManager {
             li.addEventListener('focus', () => li.style.background = 'rgba(255,255,255,0.1)');
             li.addEventListener('blur', () => li.style.background = 'transparent');
             ul.appendChild(li);
-            content.appendChild(ul);
             return;
         }
 
@@ -233,20 +220,13 @@ export class UIManager {
             });
             ul.appendChild(li);
         });
-        content.appendChild(ul);
     }
 
     renderDeck(paths) {
-        const content = this.pane1.querySelector('.pane-content');
-        content.empty();
+        const ul = document.getElementById('deck-list-container');
+        if (!ul) return;
+        ul.empty();
         
-        const ul = document.createElement('ul');
-        ul.setAttribute('role', 'listbox');
-        ul.setAttribute('aria-labelledby', this.pane1.querySelector('h3').id);
-        ul.style.listStyle = 'none';
-        ul.style.padding = '0';
-        ul.id = 'deck-list-container'; 
-
         if (paths.length === 0) {
             const li = document.createElement('li');
             li.textContent = 'Deste henüz boş.';
@@ -258,7 +238,6 @@ export class UIManager {
             li.addEventListener('focus', () => li.style.background = 'rgba(255,255,255,0.1)');
             li.addEventListener('blur', () => li.style.background = 'transparent');
             ul.appendChild(li);
-            content.appendChild(ul);
             return;
         }
 
@@ -282,6 +261,5 @@ export class UIManager {
             
             ul.appendChild(li);
         });
-        content.appendChild(ul);
     }
 }
